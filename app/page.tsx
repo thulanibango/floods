@@ -20,11 +20,11 @@ export default function Home() {
           <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">Flood Detection System</CardTitle>
-              <Shield className="h-5 w-5 text-blue-500"></Shield>
-              <CardDescription>Monitor and alert for potential flooding.</CardDescription>
+              <Shield className="h-5 w-5 text-blue-500">Analysis methods</Shield>
             </CardHeader>
             <CardContent>
-              <p>Real-time flood detection and alert system.</p>
+
+
             </CardContent>
           </Card>
 
