@@ -2,14 +2,23 @@
 
 import { AlertDialogFooter, AlertDialogHeader } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@radix-ui/react-alert-dialog";
 import { Label } from "@radix-ui/react-label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
-import { CameraIcon, GlobeIcon, ImageIcon, Loader2, MapPin, Shield, TrendingUpIcon, Upload, Map } from "lucide-react";
+import { CameraIcon, GlobeIcon, ImageIcon, Loader2, MapPin, Shield, TrendingUpIcon, Upload, Map, AlertTriangle, Info, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { isDataView } from "util/types";
+
+interface FloodRiskData {
+  risk_level: string;
+  description: string;
+  recommendations: string;
+  elevation: number;
+  distance_to_water: number;
+}
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,6 +30,81 @@ export default function Home() {
   const [analysisType, setAnalysisType] = useState<'coordinates' | 'image'>('coordinates');
   const [mapError, setMapError] = useState(false);
 
+  const API_KEY = "https://localhost:8003";
+
+  const callApi = async (endpoint: string, data: any) => {
+    try {
+      const response = await fetch(`${API_KEY}${endpoint}`, {
+        method: "POST",
+        headers: endpoint.includes("coordinates") ? {
+          "Content-Type": "application/json",
+        } : {
+          "Content-Type": "multipart/form-data",
+        },
+        body: endpoint.includes("coordinates") ? JSON.stringify(data) : data,
+      });
+
+      if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const getRiskVariant = (riskLevel: string) => {
+    switch (riskLevel) {
+      case "low":
+        return "success";
+      case "medium":
+        return "warning";
+      case "high":
+        return "error";
+      case "very high":
+        return "destructive";
+      default:
+        return "default";
+    }
+  }
+  const getRiskIcon = (riskLevel: string) => {
+    return riskLevel === "very high" || riskLevel === "high" ?
+      <AlertTriangle className="h-5 w-5" /> :
+      riskLevel === "medium" ?
+        <Info className="h-5 w-5" /> :
+        riskLevel === "low" ?
+          <CheckCircle className="h-5 w-5" /> :
+          null;
+  }
+
+  const handleImageAnalysis = async () => {
+    if (!selectedImage) {
+      setAlertMessage("Please select an image")
+      setShowAlert(true);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", selectedImage);
+      const response = await callApi("/api/analyze/image", formData);
+      console.log(response)
+
+      const riskData: FloodRiskData = {
+        risk_level: response.risk_level || 'unknown',
+        description: response.description || 'No description available',
+        recommendations: response.recommendations || 'No recommendations available',
+        elevation: response.elevation || 0,
+        distance_to_water: response.distance_to_water || 0,
+      };
+      setFloodRisk(riskData)
+      setAiAnalysis(response.ai_analysis || 'No analysis available')
+      setIsLoading(false);
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+    }
+  }
+
+
   const imageUploadHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -28,8 +112,6 @@ export default function Home() {
         setAlertMessage(file.size > 10 * 1024 * 1024 ? "File size exceeds 10MB" : "File is not an image")
         setShowAlert(true);
         return;
-
-
       }
       setSelectedImage(file);
       const reader = new FileReader();
